@@ -131,11 +131,13 @@ class Plotter(pg.PlotWidget):
     #function to update the plot (must happen in Main Thread)
     def updatePlot(self,inpData=None):
         lp=len(self.plots)-1
-        #plot the new data
-        self.plots[lp].setData(self.data[lp])
-
         if inpData:
-            if inpData[2] != self.xunit or inpData[3] != self.yunit:
+            time,value,xunit,yunit=inpData
+            #append inpData to the data array
+            self.data[lp]=np.append(self.data[lp],[(time,value)],axis=0)
+            #plot the new data
+            self.plots[lp].setData(self.data[lp])
+            if xunit != self.xunit or yunit != self.yunit:
                 self.xunit=inpData[2]
                 self.yunit=inpData[3]
                 self.uiChange()
@@ -192,9 +194,5 @@ class PlotThread(pg.QtCore.QThread):
             if inpData == None:
                 self.stop("Input Queue shutdown")
             elif inpData:
-                lp=len(self.parent.plots)-1
-                time,value,xunit,yunit=inpData
-                #append inpData to the data array
-                self.parent.data[lp]=np.append(self.parent.data[lp],[(time,value)],axis=0)
                 #broadcast the new data array
                 self.parent.newData.emit(inpData)

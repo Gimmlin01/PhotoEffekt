@@ -3,14 +3,19 @@
 
 #Standart imports
 import sys,os
-from PyQt5.QtWidgets import QMainWindow,QApplication, QWidget, QMessageBox, QAction,QHBoxLayout, QVBoxLayout,QTabWidget,QFileDialog
+from PyQt5.QtWidgets import QMainWindow,QApplication, QWidget, QMessageBox, QAction,QHBoxLayout, QVBoxLayout,QTabWidget,QFileDialog,QGroupBox,QPushButton,QRadioButton
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSettings,QSize,QPoint
 import numpy as np
+from functools import partial
 
 #custom imports
 from Plotter import Plotter
 from Pages import SettingsPage, LcdPage
+
+
+wellen={"580nm":580.0e-9,"546nm":546e-9,"492nm":492e-9,"439nm":439e-9,"400nm":400e-9}
+
 
 #define mainPage
 class MainPage(QMainWindow):
@@ -22,6 +27,9 @@ class MainPage(QMainWindow):
         self.Plots=[]
         self.lcdPage=LcdPage()
         self.settingsPage=SettingsPage()
+        self.lastData=None
+        self.lastWelle=None
+        self.wellenRadios=[]
         self.initUI()
 
 
@@ -38,17 +46,6 @@ class MainPage(QMainWindow):
         self.exitAction.setStatusTip('Exit application')
         self.exitAction.triggered.connect(self.close)
 
-        #add Action to add New Plot and start Measuring
-        self.newMeasurementAction = QAction(QIcon(resource_path('icons/PlusIcon.png')), '&New', self)
-        self.newMeasurementAction.setShortcut('Ctrl+N')
-        self.newMeasurementAction.setStatusTip('Create New Measurement')
-        self.newMeasurementAction.triggered.connect(self.newMeasure)
-
-        #add Action to Display Current Value LCD Style
-        self.lcdPageToogleAction = QAction(QIcon(resource_path('icons/NumberIcon.png')), '&LCD', self)
-        self.lcdPageToogleAction.setShortcut('Ctrl+L')
-        self.lcdPageToogleAction.setStatusTip('Display Current Value')
-        self.lcdPageToogleAction.triggered.connect(self.toggleLcd)
 
         #add Action to Open Settings
         self.openSettingsAction = QAction(QIcon(resource_path('icons/SettingsIcon.png')), '&Settings', self)
@@ -71,16 +68,9 @@ class MainPage(QMainWindow):
         #add Action to Start Measuring again
         self.startAction = QAction(QIcon(resource_path('icons/StartIcon.png')), '&Start', self)
         self.startAction.setShortcut('Ctrl+R')
-        self.startAction.setStatusTip('Start Measurement')
+        self.startAction.setStatusTip('Connect to Device')
         self.startAction.triggered.connect(self.startMeasure)
-        self.startAction.setEnabled(False)
 
-        #add Action to Pause Measuring
-        self.pauseAction = QAction(QIcon(resource_path('icons/PauseIcon.png')), '&Pause', self)
-        self.pauseAction.setShortcut('Ctrl+P')
-        self.pauseAction.setStatusTip('Pause Measurement')
-        self.pauseAction.triggered.connect(self.pauseMeasure)
-        self.pauseAction.setEnabled(False)
 
         #add Action to Stop Measuring
         self.stopAction = QAction(QIcon(resource_path('icons/StopIcon.png')), '&Stop', self)
@@ -88,12 +78,10 @@ class MainPage(QMainWindow):
         self.stopAction.setStatusTip('Stop Measurement')
         self.stopAction.triggered.connect(self.stopMeasure)
         self.stopAction.setEnabled(False)
-
         #create new MenuBar
         menubar = self.menuBar()
         #MenuBar entrys
         fileMenu = menubar.addMenu('&File')
-        fileMenu.addAction(self.newMeasurementAction)
         fileMenu.addAction(self.saveDataAction)
         fileMenu.addAction(self.loadDataAction)
         fileMenu.addAction(self.openSettingsAction)
@@ -103,115 +91,122 @@ class MainPage(QMainWindow):
         toolbar = self.addToolBar('Tool')
         #Toolbar entrys
         toolbar.addAction(self.exitAction)
-        toolbar.addAction(self.newMeasurementAction)
         toolbar.addAction(self.startAction)
-        #toolbar.addAction(self.pauseAction)
         toolbar.addAction(self.stopAction)
-        toolbar.addAction(self.lcdPageToogleAction)
+        toolbar.addAction(self.openSettingsAction)
+
+
+        self.plotWidget = Plotter(self)
+        self.infoWidget = self.createInfoWidget()
+
 
         #create Main Widget
-        self.tabWidget = QTabWidget()
-        self.tabWidget.setTabsClosable(True)
-        self.tabWidget.currentChanged.connect(self.tabChanged)
-        self.tabWidget.tabCloseRequested.connect(self.tabClosed)
+        self.mainWidget=QWidget()
+        self.mainLayout = QHBoxLayout()
+        self.mainLayout.addWidget(self.plotWidget,10)
+        self.mainLayout.addWidget(self.infoWidget,8)
+        self.mainWidget.setLayout(self.mainLayout)
         #set Central Widget to Main Widget
-        self.setCentralWidget(self.tabWidget)
-
+        self.setCentralWidget(self.mainWidget)
+        self.Plots.append(self.plotWidget)
         #show MainWindow
         self.show()
 
-    #function to start a new Measuring
-    def newMeasure(self):
-        self.newPlot(start=True)
 
-    #function to make a new Plot
-    def newPlot(self,start=False):
-        #create new Plot
-        plotWidget = Plotter(self)
-        if start:
-            if not plotWidget.start():
-                return None
+    def createInfoWidget(self):
 
-        self.Plots.append(plotWidget)
-        #New Plot Tab
-        plotTab = QWidget()
-        plotLayout = QVBoxLayout()
-        plotLayout.addWidget(plotWidget)
-        plotTab.setLayout(plotLayout)
-        self.tabWidget.addTab(plotTab, 'Plot ' + str(len(self.Plots)))
-        return plotWidget
+        freqGroupBox=QGroupBox("Wellenlänge")
+        freqVbox=QVBoxLayout()
+        for w in wellen:
+            radio = QRadioButton(w)
+            radio.toggled.connect(partial(self.setWellen,radio))
+            self.wellenRadios.append(radio)
+            freqVbox.addWidget(radio)
+        self.wellenRadios[0].setChecked(True)
+        freqGroupBox.setLayout(freqVbox)
+
+        resultGroupBox=QGroupBox("Ergebnisse")
+        resultVbox=QVBoxLayout()
+        for w in wellen:
+            radio = QRadioButton(w)
+            radio.toggled.connect(partial(self.setWellen,radio))
+            resultVbox.addWidget(radio)
+        resultGroupBox.setLayout(resultVbox)
+
+        #create infofreqWidget
+        infofreqWidget=QWidget()
+        infofreqHBox = QHBoxLayout()
+        infofreqHBox.addWidget(freqGroupBox,1)
+        infofreqHBox.addWidget(resultGroupBox,2)
+        infofreqWidget.setLayout(infofreqHBox)
+
+        measureButton=QPushButton("Messen")
+        calcButton=QPushButton("Auswerten")
+        measureButton.clicked.connect(lambda:self.measure())
+        buttonWidget=QWidget()
+        buttonHBox = QHBoxLayout()
+        buttonHBox.addWidget(measureButton)
+        buttonHBox.addWidget(calcButton)
+        buttonWidget.setLayout(buttonHBox)
+
+
+        #create Info Widget
+        infoWidget=QWidget()
+        infoVBox=QVBoxLayout()
+        infoVBox.addWidget(self.lcdPage,4)
+        infoVBox.addWidget(infofreqWidget,4)
+        infoVBox.addStretch(1)
+        infoVBox.addWidget(buttonWidget)
+        infoWidget.setLayout(infoVBox)
+
+        return infoWidget
+
+    def setWellen(self,wich):
+        if (wich.isChecked()):
+            self.lastWelle=wellen[wich.text()]
+
+    def connectDevice(self):
+        #connect the Lcd to the current Plot
+        self.lcdPage.connectTo(self.plotWidget)
+        self.plotWidget.newData.connect(self.newData)
+
+    def newData(self,inpData):
+        self.lastData=inpData
+
+    def measure(self):
+        time,value,xunit,yunit=self.lastData
+        data=(3.0e8/self.lastWelle,value,("Frequenz","Hz"),yunit)
+        self.plotWidget.updatePlot(data)
+        print(self.plotWidget.plots[len(self.plotWidget.plots)-1].getData())
 
     #function to start Measuring again
     def startMeasure(self):
         #find the current Plot in the displayed tab
-        currPlot = self.tabWidget.currentWidget().findChild(Plotter)
+        currPlot = self.plotWidget
         if currPlot.stopped():
             #if its stopped start it
             if not currPlot.start():
                 return False
+            else:
+                self.connectDevice()
         elif currPlot.paused():
             #if its paused start it
             currPlot.unpause()
         else:
             print("Plot neither stopped nor paused")
         self.startAction.setEnabled(False)
-        self.pauseAction.setEnabled(True)
-        self.stopAction.setEnabled(True)
-
-    #function to pause Measuring
-    def pauseMeasure(self):
-        self.tabWidget.currentWidget().findChild(Plotter).pause("User Paused")
-        self.startAction.setEnabled(True)
-        self.pauseAction.setEnabled(False)
         self.stopAction.setEnabled(True)
 
     #function to stop Measuring
     def stopMeasure(self):
         #stop current plot
-        self.tabWidget.currentWidget().findChild(Plotter).stop("User Stopped")
+        self.plotWidget.stop("User Stopped")
         self.stopUi()
 
+    #function to set the actions right
     def stopUi(self):
-        #change Actions
         self.startAction.setEnabled(True)
-        self.pauseAction.setEnabled(False)
         self.stopAction.setEnabled(False)
-
-    #function to Handle if User Changes the Tab
-    def tabChanged(self):
-        currWidget=self.tabWidget.currentWidget()
-        if not currWidget==None:
-            currPlot=currWidget.findChild(Plotter)
-            #disconnect all Signals from all Plots (saves ressources), so they don't update their plot when not shown
-            for p in self.Plots:
-                p.disconnectAll()
-            #connect the current Plot (live Updates)
-            currPlot.connect()
-            #connect the Lcd to the current Plot
-            self.lcdPage.connectTo(currPlot)
-            #fix Actions
-            if currPlot.stopped():
-                self.startAction.setEnabled(True)
-                self.pauseAction.setEnabled(False)
-                self.stopAction.setEnabled(False)
-            elif currPlot.paused():
-                self.startAction.setEnabled(True)
-                self.pauseAction.setEnabled(False)
-                self.stopAction.setEnabled(True)
-            else:
-                self.startAction.setEnabled(False)
-                self.pauseAction.setEnabled(True)
-                self.stopAction.setEnabled(True)
-        else:
-            self.startAction.setEnabled(False)
-            self.pauseAction.setEnabled(False)
-            self.stopAction.setEnabled(False)
-            self.lcdPage.display(0.000)
-
-    #function to handle Tab Close
-    def tabClosed(self,tab_index):
-        self.tabWidget.widget(tab_index).findChild(Plotter).stop("Tab Closed")
-        self.tabWidget.removeTab(tab_index)
 
     #function to save the data of the Current opened Plot
     def saveData(self):
@@ -234,14 +229,6 @@ class MainPage(QMainWindow):
                 loadedData = np.loadtxt(f)
                 plotWidget.newPlot(loadedData)
 
-
-    #function to toggle Lcd on and off
-    def toggleLcd(self):
-        if not self.lcdPage.isVisible():
-            self.lcdPage.display(0.000)
-            self.lcdPage.show()
-        else:
-            self.lcdPage.close()
 
     #function to open Settings
     def openSettings(self):
