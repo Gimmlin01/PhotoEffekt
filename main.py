@@ -3,22 +3,30 @@
 
 #Standart imports
 import sys,os
-from PyQt5.QtWidgets import QMainWindow,QApplication, QWidget, QMessageBox, QAction,QHBoxLayout, QVBoxLayout,QTabWidget,QFileDialog,QGroupBox,QPushButton,QRadioButton
-from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QMainWindow,QApplication, QWidget, QMessageBox, QAction,QHBoxLayout, QVBoxLayout,QTabWidget,QFileDialog,QGroupBox,QPushButton,QRadioButton,QLabel
+from PyQt5.QtGui import QIcon,QFont
 from PyQt5.QtCore import QSettings,QSize,QPoint
 import numpy as np
-from functools import partial
 from scipy.optimize import curve_fit
-import matplotlib.pyplot as plt
 #custom imports
 from Plotter import Plotter
 from Pages import SettingsPage, LcdPage
 
 
-wellen={"580nm":580.0e-9,"546nm":546e-9,"492nm":492e-9,"439nm":439e-9,"400nm":400e-9}
+wellen=[["580nm",580e-9],["546nm",546e-9],["492nm",492e-9],["439nm",439e-9],["400nm",400e-9]]
 
 def f(x,a,c):
     return a*x+c
+
+def find_in_sublist(haufen,nadel):
+    for x in range(0,len(haufen)):
+        if nadel in haufen[x]:
+            break
+        else:
+            pass
+    else:
+        x=None
+    return x
 
 #define mainPage
 class MainPage(QMainWindow):
@@ -26,13 +34,12 @@ class MainPage(QMainWindow):
         super(MainPage,self).__init__()
         self.settings = QSettings('LMU-Muenchen', 'Voltmeter')
         self.settings.setValue("path",os.path.dirname(os.path.realpath(__file__)))
-        #Array to save the Multiple Plots
-        self.Plots=[]
         self.lcdPage=LcdPage()
         self.settingsPage=SettingsPage()
         self.lastData=None
-        self.lastWelle=None
+        self.labels=[]
         self.wellenRadios=[]
+        self.settingsPage.uiChange.connect(self.uiChange)
         self.initUI()
 
 
@@ -111,8 +118,8 @@ class MainPage(QMainWindow):
         self.mainWidget.setLayout(self.mainLayout)
         #set Central Widget to Main Widget
         self.setCentralWidget(self.mainWidget)
-        self.Plots.append(self.plotWidget)
         #show MainWindow
+        self.uiChange()
         self.show()
 
 
@@ -121,8 +128,7 @@ class MainPage(QMainWindow):
         freqGroupBox=QGroupBox("Wellenlänge")
         freqVbox=QVBoxLayout()
         for w in wellen:
-            radio = QRadioButton(w)
-            radio.toggled.connect(partial(self.setWellen,radio))
+            radio = QRadioButton(w[0])
             self.wellenRadios.append(radio)
             freqVbox.addWidget(radio)
         self.wellenRadios[0].setChecked(True)
@@ -130,11 +136,43 @@ class MainPage(QMainWindow):
 
         resultGroupBox=QGroupBox("Ergebnisse")
         resultVbox=QVBoxLayout()
-        for w in wellen:
-            radio = QRadioButton(w)
-            radio.toggled.connect(partial(self.setWellen,radio))
-            resultVbox.addWidget(radio)
+
+        #create Steigung Row
+        widgetSteigung=QWidget()
+        hBoxSteigung=QHBoxLayout()
+        labelSteigungText=QLabel("Steigung: ")
+        self.labels.append(labelSteigungText)
+        hBoxSteigung.addWidget(labelSteigungText)
+        labelSteigung=QLabel("0")
+        self.labels.append(labelSteigung)
+        hBoxSteigung.addWidget(labelSteigung)
+        widgetSteigung.setLayout(hBoxSteigung)
+        resultVbox.addWidget(widgetSteigung)
         resultGroupBox.setLayout(resultVbox)
+
+        #create Y-Achsenabschnitt Row
+        widgetYachse=QWidget()
+        hBoxYachse=QHBoxLayout()
+        labelYachseText=QLabel("Y-Achsenabschnitt: ")
+        self.labels.append(labelYachseText)
+        hBoxYachse.addWidget(labelYachseText)
+        labelYachse=QLabel("0")
+        self.labels.append(labelYachse)
+        hBoxYachse.addWidget(labelYachse)
+        widgetYachse.setLayout(hBoxYachse)
+        resultVbox.addWidget(widgetYachse)
+
+        #create Plank Row
+        widgetPlank=QWidget()
+        hBoxPlank=QHBoxLayout()
+        labelPlankText=QLabel("Plancksches Wirkungsquantum: ")
+        self.labels.append(labelPlankText)
+        hBoxPlank.addWidget(labelPlankText)
+        labelPlank=QLabel("0")
+        self.labels.append(labelPlank)
+        hBoxPlank.addWidget(labelPlank)
+        widgetPlank.setLayout(hBoxPlank)
+        resultVbox.addWidget(widgetPlank)
 
         #create infofreqWidget
         infofreqWidget=QWidget()
@@ -165,10 +203,6 @@ class MainPage(QMainWindow):
 
         return infoWidget
 
-    def setWellen(self,wich):
-        if (wich.isChecked()):
-            self.lastWelle=wellen[wich.text()]
-
     def connectDevice(self):
         #connect the Lcd to the current Plot
         self.lcdPage.connectTo(self.plotWidget)
@@ -181,19 +215,43 @@ class MainPage(QMainWindow):
         if self.plotWidget.stopped():
             if not self.startMeasure():
                 return
-        time,value,xunit,yunit=self.lastData
-        data=(3.0e8/self.lastWelle,value,("Frequenz","Hz"),yunit)
-        self.plotWidget.updatePlot(data)
-        print(self.plotWidget.plots[len(self.plotWidget.plots)-1].getData())
+        if self.lastData:
+            i=0
+            wert=0
+            for w in self.wellenRadios:
+                if w.isChecked():
+                    i=self.wellenRadios.index(w)
+                    wert=3.0e8/wellen[find_in_sublist(wellen,w.text())][1]
+            mdata=self.plotWidget.data[0]
+            ii=find_in_sublist(mdata,wert)
+            xvalue,yvalue,xunit,yunit=self.lastData
+            if not ii==None:
+                mdata[ii]=[wert,yvalue]
+                self.plotWidget.replacePlot(id=0,scatter=True,data=mdata)
+            else:
+                self.wellenRadios[i].setChecked(False)
+                self.wellenRadios[(i+1)%len(self.wellenRadios)].setChecked(True)
+                data=(wert,yvalue,("Frequenz","Hz"),yunit)
+                self.plotWidget.updatePlot(id=0,inpData=data)
+
+
+
 
     def calc(self):
-        xdata,ydata = self.plotWidget.plots[len(self.plotWidget.plots)-1].getData()
+        xdata,ydata = self.plotWidget.plots[0].getData()
         popt, pcov = curve_fit(f, xdata, ydata)
         newx=np.arange(min(xdata),max(xdata),(max(xdata)-min(xdata))/1000)
         newy=f(newx,*popt)
-        data=(newx,newy)
-        plt.plot(newx,newy)
-        plt.show()
+        data=np.empty([0,2])
+        for paar in zip(newx,newy):
+            data=np.append(data,[paar],axis=0)
+        a,c=popt
+        e=1.6021766208E-19
+        h=a*e
+        self.labels[3].setText('{:.2e} {}'.format(c,self.plotWidget.yunit[1]))
+        self.labels[1].setText('{:.2e} {}/{}'.format(a,self.plotWidget.yunit[1],"Hz"))
+        self.labels[5].setText('{:.2e} Js'.format(h))
+        self.plotWidget.newPlot(data=data)
 
     #function to start Measuring again
     def startMeasure(self):
@@ -212,6 +270,7 @@ class MainPage(QMainWindow):
             print("Plot neither stopped nor paused")
         self.startAction.setEnabled(False)
         self.stopAction.setEnabled(True)
+        return True
 
     #function to stop Measuring
     def stopMeasure(self):
@@ -223,6 +282,12 @@ class MainPage(QMainWindow):
     def stopUi(self):
         self.startAction.setEnabled(True)
         self.stopAction.setEnabled(False)
+
+    def uiChange(self):
+        newfont = QFont("Times", self.settings.value("fontThickness",15,int))
+        for l in self.labels:
+            l.setFont(newfont)
+
 
     #function to save the data of the Current opened Plot
     def saveData(self):
@@ -278,24 +343,22 @@ class MainPage(QMainWindow):
         if (self.settings.value("Position",True,bool)):
             self.settings.setValue("mainPagePos",self.pos())
         try:
-            for p in self.Plots:
-                #Stop Connection and its Thread
-                if p.connection.stopped():
-                    print("Connection already stopped")
-                else:
-                    p.connection.stop("App CloseEvent")
-                #Stop Plot and its Thread
-                if p.stopped():
-                    print("Plot already stopped")
-                else:
-                    p.stop("App CloseEvent")
+            #Stop Connection and its Thread
+            if self.plotWidget.connection.stopped():
+                print("Connection already stopped")
+            else:
+                self.plotWidget.connection.stop("App CloseEvent")
+            #Stop Plot and its Thread
+            if self.plotWidget.stopped():
+                print("Plot already stopped")
+            else:
+                self.plotWidget.stop("App CloseEvent")
 
             allstopped=True
-            for p in self.Plots:
-                if p.connection.stopped() and p.stopped():
-                    allstopped=True
-                else:
-                    allstopped=False
+            if self.plotWidget.connection.stopped() and self.plotWidget.stopped():
+                allstopped=True
+            else:
+                allstopped=False
         except:
             allstopped=True
         #check if all are stopped

@@ -49,7 +49,7 @@ class Plotter(pg.PlotWidget):
     #function to connect the updatePlot function to the newData Signal
     def connect(self):
         #connect the newData Signal to the updatePlot function
-        self.newData.connect(self.updatePlot)
+        self.newData.connect(self.updateCurrentPlot)
 
     #function to disconnect all handlers from the newData signal
     def disconnectAll(self):
@@ -73,7 +73,7 @@ class Plotter(pg.PlotWidget):
         self.plotThread=PlotThread(self)
         #start the Thread
         self.plotThread.start()
-        self.newPlot(scatter)
+        self.newPlot(scatter=scatter)
 
         #it is now running
         self._stop_event.clear()
@@ -115,7 +115,7 @@ class Plotter(pg.PlotWidget):
         return self._pause_event.is_set()
 
     #function to add a New Plot to the Plotter
-    def newPlot(self,scatter=False,data=np.empty([0,2])):
+    def newPlot(self,id=None,scatter=False,data=np.empty([0,2])):
         lp=len(self.plots)
         self.data.append(data)
         if scatter:
@@ -132,25 +132,42 @@ class Plotter(pg.PlotWidget):
             self.legend.addItem(plot, "Graph "+str(lp+1))
         return plot
 
+    def replacePlot(self,id=None,scatter=False,data=np.empty([0,2])):
+        if id < len(self.plots):
+            self.data[id]=data
+            self.plots[id].setData(self.data[id])
+            if scatter:
+                self.plots[id].setSymbol("o")
+            else:
+                pen=pg.mkPen(color=self.settings.value("colors",defaultColors,QColor)[lp%16],width=self.settings.value("lineThickness",3,int))
+                self.plots[id].setPen(pen)
+            self.scatters[id]=scatter
+        else:
+            print("wrong id")
+
     #function to update the plot (must happen in Main Thread)
-    def updatePlot(self,inpData=None):
-        lp=len(self.plots)-1
+    def updatePlot(self,id=None,inpData=None):
+        print(len(self.plots))
+        if id==None:
+            id=len(self.plots)-1
         if inpData:
             time,value,xunit,yunit=inpData
             #append inpData to the data array
-            self.data[lp]=np.append(self.data[lp],[(time,value)],axis=0)
+            self.data[id]=np.append(self.data[id],[(time,value)],axis=0)
             #plot the new data
-            self.plots[lp].setData(self.data[lp])
+            self.plots[id].setData(self.data[id])
             if xunit != self.xunit or yunit != self.yunit:
                 self.xunit=inpData[2]
                 self.yunit=inpData[3]
                 self.uiChange()
-        #show status
-        self.parent.statusBar().showMessage("Working",1000)
+
+    #function to update the plot (must happen in Main Thread)
+    def updateCurrentPlot(self,inpData=None):
+        if inpData:
+            self.updatePlot(id=len(self.plots)-1,inpData=inpData)
 
     #function witch is called if Something was changed in the Settings
     def uiChange(self):
-        print("a")
         #get colors and width
         c=self.settings.value("colors",defaultColors,QColor)
         w=self.settings.value("lineThickness",3,int)

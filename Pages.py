@@ -86,21 +86,34 @@ class SettingsPage(QWidget):
 
         #Create Menu to set Appearence
         self.uiGroupBox=QGroupBox("UI")
+        #create Axis Size chooser
         uiVbox = QVBoxLayout()
-        thickInp=QSpinBox()
-        thickInp.setPrefix("Axis Lable: ")
-        thickInp.setSuffix("px")
+        axisThickInp=QSpinBox()
+        axisThickInp.setPrefix("Axis Lable: ")
+        axisThickInp.setSuffix("px")
         lineThick=self.settings.value("axisThickness", 20,int)
-        thickInp.setValue(lineThick)
-        thickInp.valueChanged.connect(self.changeAxisThickness)
-        uiVbox.addWidget(thickInp)
-        thickInp=QSpinBox()
-        thickInp.setPrefix("Tick Lable: ")
-        thickInp.setSuffix("px")
+        axisThickInp.setValue(lineThick)
+        axisThickInp.valueChanged.connect(self.changeAxisThickness)
+        uiVbox.addWidget(axisThickInp)
+
+        #create Tick Size chooser
+        tickThickInp=QSpinBox()
+        tickThickInp.setPrefix("Tick Lable: ")
+        tickThickInp.setSuffix("px")
         lineThick=self.settings.value("tickThickness", 15,int)
-        thickInp.setValue(lineThick)
-        thickInp.valueChanged.connect(self.changeTickThickness)
-        uiVbox.addWidget(thickInp)
+        tickThickInp.setValue(lineThick)
+        tickThickInp.valueChanged.connect(self.changeTickThickness)
+        uiVbox.addWidget(tickThickInp)
+
+        #create Font Size chooser
+        fontThickInp=QSpinBox()
+        fontThickInp.setPrefix("Font Size: ")
+        fontThickInp.setSuffix("px")
+        lineThick=self.settings.value("fontSize", 15,int)
+        fontThickInp.setValue(lineThick)
+        fontThickInp.valueChanged.connect(self.changeFontThickness)
+        uiVbox.addWidget(fontThickInp)
+
         self.uiGroupBox.setLayout(uiVbox)
         self.grid.addWidget(self.uiGroupBox)
 
@@ -168,6 +181,7 @@ class SettingsPage(QWidget):
         self.settings.setValue("colors",colors)
         self.uiChange.emit(None)
         self.show()
+        
     #function to set connection to wich
     def setConnection(self,wich):
         if (wich.isChecked()):
@@ -191,6 +205,11 @@ class SettingsPage(QWidget):
     #function to change Tick Thickness
     def changeTickThickness(self,thick):
         self.settings.setValue("tickThickness",thick)
+        self.uiChange.emit(None)
+
+    #function to change Font Thickness
+    def changeFontThickness(self,thick):
+        self.settings.setValue("fontThickness",thick)
         self.uiChange.emit(None)
 
     #function to change Line Thickess
