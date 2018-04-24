@@ -3,4 +3,4 @@
 __pycache__/
 *.py[cod]
 build/
-dist/devices/
+dist/
