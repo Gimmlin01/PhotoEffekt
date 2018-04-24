@@ -8,7 +8,8 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSettings,QSize,QPoint
 import numpy as np
 from functools import partial
-
+from scipy.optimize import curve_fit
+import matplotlib.pyplot as plt
 #custom imports
 from Plotter import Plotter
 from Pages import SettingsPage, LcdPage
@@ -16,6 +17,8 @@ from Pages import SettingsPage, LcdPage
 
 wellen={"580nm":580.0e-9,"546nm":546e-9,"492nm":492e-9,"439nm":439e-9,"400nm":400e-9}
 
+def f(x,a,c):
+    return a*x+c
 
 #define mainPage
 class MainPage(QMainWindow):
@@ -143,6 +146,7 @@ class MainPage(QMainWindow):
         measureButton=QPushButton("Messen")
         calcButton=QPushButton("Auswerten")
         measureButton.clicked.connect(lambda:self.measure())
+        calcButton.clicked.connect(lambda:self.calc())
         buttonWidget=QWidget()
         buttonHBox = QHBoxLayout()
         buttonHBox.addWidget(measureButton)
@@ -174,10 +178,22 @@ class MainPage(QMainWindow):
         self.lastData=inpData
 
     def measure(self):
+        if self.plotWidget.stopped():
+            if not self.startMeasure():
+                return
         time,value,xunit,yunit=self.lastData
         data=(3.0e8/self.lastWelle,value,("Frequenz","Hz"),yunit)
         self.plotWidget.updatePlot(data)
         print(self.plotWidget.plots[len(self.plotWidget.plots)-1].getData())
+
+    def calc(self):
+        xdata,ydata = self.plotWidget.plots[len(self.plotWidget.plots)-1].getData()
+        popt, pcov = curve_fit(f, xdata, ydata)
+        newx=np.arange(min(xdata),max(xdata),(max(xdata)-min(xdata))/1000)
+        newy=f(newx,*popt)
+        data=(newx,newy)
+        plt.plot(newx,newy)
+        plt.show()
 
     #function to start Measuring again
     def startMeasure(self):
@@ -185,7 +201,7 @@ class MainPage(QMainWindow):
         currPlot = self.plotWidget
         if currPlot.stopped():
             #if its stopped start it
-            if not currPlot.start():
+            if not currPlot.start(scatter=True):
                 return False
             else:
                 self.connectDevice()

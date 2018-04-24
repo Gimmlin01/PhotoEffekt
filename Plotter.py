@@ -26,7 +26,6 @@ class Plotter(pg.PlotWidget):
 
     def __init__(self,parent):
         super(Plotter, self).__init__()
-
         #save parent
         self.parent=parent
         #Stop Event to make it stoppable
@@ -38,6 +37,7 @@ class Plotter(pg.PlotWidget):
         #init Variables
         self.connection=None
         self.plotThread=None
+        self.scatters=[]
         self.plots=[]
         self.legend=None
         self.xunit="xunit"
@@ -61,7 +61,7 @@ class Plotter(pg.PlotWidget):
             pass
 
     #function to start the live Plot
-    def start(self):
+    def start(self,scatter=False):
         #establish Connection
         self.connection=Connection()
         #start the Connection
@@ -73,7 +73,7 @@ class Plotter(pg.PlotWidget):
         self.plotThread=PlotThread(self)
         #start the Thread
         self.plotThread.start()
-        self.newPlot()
+        self.newPlot(scatter)
 
         #it is now running
         self._stop_event.clear()
@@ -115,11 +115,15 @@ class Plotter(pg.PlotWidget):
         return self._pause_event.is_set()
 
     #function to add a New Plot to the Plotter
-    def newPlot(self,data=np.empty([0,2])):
+    def newPlot(self,scatter=False,data=np.empty([0,2])):
         lp=len(self.plots)
-        pen=pg.mkPen(color=self.settings.value("colors",defaultColors,QColor)[lp%16],width=self.settings.value("lineThickness",3,int))
         self.data.append(data)
-        plot=self.plot(self.data[lp],pen=pen)
+        if scatter:
+            plot=self.plot(self.data[lp],pen=None,symbol="o")
+        else:
+            pen=pg.mkPen(color=self.settings.value("colors",defaultColors,QColor)[lp%16],width=self.settings.value("lineThickness",3,int))
+            plot=self.plot(self.data[lp],pen=pen)
+        self.scatters.append(scatter)
         self.plots.append(plot)
         if lp==1:
             self.legend=self.addLegend()
@@ -146,13 +150,16 @@ class Plotter(pg.PlotWidget):
 
     #function witch is called if Something was changed in the Settings
     def uiChange(self):
+        print("a")
         #get colors and width
         c=self.settings.value("colors",defaultColors,QColor)
         w=self.settings.value("lineThickness",3,int)
+
         #create each pen and update colors and width
         for i,p in enumerate(self.plots):
-            pen=pg.mkPen(color=c[i],width=w)
-            p.setPen(pen)
+            if not self.scatters[i]:
+                pen=pg.mkPen(color=c[i],width=w)
+                p.setPen(pen)
         #update labelStyle
         labelStyle = {'color': '#FFF', 'font-size': str(self.settings.value("axisThickness",20,int))+"px"}
         self.setLabel("bottom",self.xunit[0],units=self.xunit[1],**labelStyle)
