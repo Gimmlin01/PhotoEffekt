@@ -181,7 +181,7 @@ class SettingsPage(QWidget):
         self.settings.setValue("colors",colors)
         self.uiChange.emit(None)
         self.show()
-        
+
     #function to set connection to wich
     def setConnection(self,wich):
         if (wich.isChecked()):
@@ -258,7 +258,7 @@ class LcdPage(QWidget):
 
     #function to adapt to resized window size
     def onResize(self,event):
-        self.font.setPixelSize(self.height()*0.3)
+        self.font.setPixelSize(self.height()*0.1)
         self.text.setFont(self.font)
 
     #function to initiate UI
@@ -276,7 +276,7 @@ class LcdPage(QWidget):
         self.lcd.setDigitCount(5)
         self.text=QLabel("unit")
         self.font=QFont()
-        self.font.setPixelSize(self.height()*0.3)
+        self.font.setPixelSize(self.height()*0.1)
         self.text.setFont(self.font)
         grid.addWidget(self.lcd,0,0)
         grid.addWidget(self.text,0,1)

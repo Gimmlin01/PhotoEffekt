@@ -13,7 +13,7 @@ from Plotter import Plotter
 from Pages import SettingsPage, LcdPage
 
 
-wellen=[["580nm",580e-9],["546nm",546e-9],["492nm",492e-9],["439nm",439e-9],["400nm",400e-9]]
+wellen=[["580nm",580e-9],["585nm",585e-9],["581nm",581e-9],["546nm",546e-9],["492nm",492e-9],["439nm",439e-9],["400nm",400e-9]]
 
 def f(x,a,c):
     return a*x+c
@@ -248,8 +248,8 @@ class MainPage(QMainWindow):
         a,c=popt
         e=1.6021766208E-19
         h=a*e
-        self.labels[3].setText('{:.2e} {}'.format(c,self.plotWidget.yunit[1]))
-        self.labels[1].setText('{:.2e} {}/{}'.format(a,self.plotWidget.yunit[1],"Hz"))
+        self.labels[3].setText('{:.2e} {}'.format(c,"V"))
+        self.labels[1].setText('{:.2e} {}/{}'.format(a,"V","Hz"))
         self.labels[5].setText('{:.2e} Js'.format(h))
         self.plotWidget.newPlot(data=data)
 
