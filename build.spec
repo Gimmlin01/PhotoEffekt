@@ -8,7 +8,7 @@ added_files = [
          ]
 
 a = Analysis(['main.py','devices/Ut61c.py'],
-             pathex=['D:/Photoeffekt/','/media/yoxcu/Daten/Photoeffekt/','C:/Users/Yoxcu/AppData/Local/Programs/Python/Python36-32/Lib/site-packages/scipy/extra-dll'],
+             pathex=['D:\github\PhotoEffekt','/media/yoxcu/Daten/Photoeffekt/','C:/Users/Yoxcu/AppData/Local/Programs/Python/Python36-32/Lib/site-packages/scipy/extra-dll'],
              binaries=[],
              datas=added_files,
              hiddenimports=['scipy._lib.messagestream'],

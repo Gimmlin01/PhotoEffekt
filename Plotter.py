@@ -24,7 +24,7 @@ class Plotter(pg.PlotWidget):
     #newData Signal
     newData = pg.QtCore.Signal(object)
 
-    def __init__(self,parent):
+    def __init__(self,parent,legend=True):
         super(Plotter, self).__init__()
         #save parent
         self.parent=parent
@@ -39,7 +39,8 @@ class Plotter(pg.PlotWidget):
         self.plotThread=None
         self.scatters=[]
         self.plots=[]
-        self.legend=None
+        self.legendItem=None
+        self.legend=legend
         self.xunit="xunit"
         self.yunit="yunit"
         self.settings = QSettings('LMU-Muenchen', 'Voltmeter')
@@ -125,11 +126,11 @@ class Plotter(pg.PlotWidget):
             plot=self.plot(self.data[lp],pen=pen)
         self.scatters.append(scatter)
         self.plots.append(plot)
-        if lp==1:
-            self.legend=self.addLegend()
-            self.legend.addItem(self.plots[0], "Graph 1")
-        if self.legend:
-            self.legend.addItem(plot, "Graph "+str(lp+1))
+        if lp==1 and self.legend:
+            self.legendItem=self.addLegend()
+            self.legendItem.addItem(self.plots[0], "Graph 1")
+        if self.legendItem:
+            self.legendItem.addItem(plot, "Graph "+str(lp+1))
         return plot
 
     def replacePlot(self,id=None,scatter=False,data=np.empty([0,2])):
@@ -139,15 +140,15 @@ class Plotter(pg.PlotWidget):
             if scatter:
                 self.plots[id].setSymbol("o")
             else:
-                pen=pg.mkPen(color=self.settings.value("colors",defaultColors,QColor)[lp%16],width=self.settings.value("lineThickness",3,int))
+                pen=pg.mkPen(color=self.settings.value("colors",defaultColors,QColor)[id%16],width=self.settings.value("lineThickness",3,int))
                 self.plots[id].setPen(pen)
             self.scatters[id]=scatter
         else:
-            print("wrong id")
+            print("wrong id creating new Plot")
+            self.newPlot(id=id,scatter=scatter,data=data)
 
     #function to update the plot (must happen in Main Thread)
     def updatePlot(self,id=None,inpData=None):
-        print(len(self.plots))
         if id==None:
             id=len(self.plots)-1
         if inpData:

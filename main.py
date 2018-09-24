@@ -3,7 +3,7 @@
 
 #Standart imports
 import sys,os
-from PyQt5.QtWidgets import QMainWindow,QApplication, QWidget, QMessageBox, QAction,QHBoxLayout, QVBoxLayout,QTabWidget,QFileDialog,QGroupBox,QPushButton,QRadioButton,QLabel
+from PyQt5.QtWidgets import QMainWindow,QApplication, QWidget, QMessageBox, QAction,QHBoxLayout, QVBoxLayout,QTabWidget,QFileDialog,QGroupBox,QPushButton,QRadioButton,QLabel,QGridLayout
 from PyQt5.QtGui import QIcon,QFont
 from PyQt5.QtCore import QSettings,QSize,QPoint
 import numpy as np
@@ -13,7 +13,7 @@ from Plotter import Plotter
 from Pages import SettingsPage, LcdPage
 
 
-wellen=[["580nm",580e-9],["585nm",585e-9],["581nm",581e-9],["546nm",546e-9],["492nm",492e-9],["439nm",439e-9],["400nm",400e-9]]
+wellen=[["585nm",585e-9],["581nm",581e-9],["580nm",580e-9],["546nm",546e-9],["492nm",492e-9],["439nm",439e-9],["400nm",400e-9]]
 
 def f(x,a,c):
     return a*x+c
@@ -88,6 +88,11 @@ class MainPage(QMainWindow):
         self.stopAction.setStatusTip('Stop Measurement')
         self.stopAction.triggered.connect(self.stopMeasure)
         self.stopAction.setEnabled(False)
+
+        #add Action to Measured
+        self.measureAction = QAction(QIcon(resource_path('icons/SaveIcon.png')), '&Measure', self)
+        self.measureAction.setShortcut('F9')
+        self.measureAction.triggered.connect(self.measure)
         #create new MenuBar
         menubar = self.menuBar()
         #MenuBar entrys
@@ -104,9 +109,10 @@ class MainPage(QMainWindow):
         toolbar.addAction(self.startAction)
         toolbar.addAction(self.stopAction)
         toolbar.addAction(self.openSettingsAction)
+        toolbar.addAction(self.measureAction)
 
 
-        self.plotWidget = Plotter(self)
+        self.plotWidget = Plotter(self,legend=False)
         self.infoWidget = self.createInfoWidget()
 
 
@@ -134,45 +140,39 @@ class MainPage(QMainWindow):
         self.wellenRadios[0].setChecked(True)
         freqGroupBox.setLayout(freqVbox)
 
-        resultGroupBox=QGroupBox("Ergebnisse")
-        resultVbox=QVBoxLayout()
+        #create Ergebnisse Layout
+        layout = QGridLayout()
+        layout.setColumnStretch(0, 2)
+        layout.setColumnStretch(1, 4)
 
         #create Steigung Row
-        widgetSteigung=QWidget()
-        hBoxSteigung=QHBoxLayout()
         labelSteigungText=QLabel("Steigung: ")
         self.labels.append(labelSteigungText)
-        hBoxSteigung.addWidget(labelSteigungText)
+        layout.addWidget(labelSteigungText,0,0)
         labelSteigung=QLabel("0")
         self.labels.append(labelSteigung)
-        hBoxSteigung.addWidget(labelSteigung)
-        widgetSteigung.setLayout(hBoxSteigung)
-        resultVbox.addWidget(widgetSteigung)
-        resultGroupBox.setLayout(resultVbox)
+        layout.addWidget(labelSteigung,0,1)
 
         #create Y-Achsenabschnitt Row
-        widgetYachse=QWidget()
-        hBoxYachse=QHBoxLayout()
         labelYachseText=QLabel("Y-Achsenabschnitt: ")
         self.labels.append(labelYachseText)
-        hBoxYachse.addWidget(labelYachseText)
+        layout.addWidget(labelYachseText,1,0)
         labelYachse=QLabel("0")
         self.labels.append(labelYachse)
-        hBoxYachse.addWidget(labelYachse)
-        widgetYachse.setLayout(hBoxYachse)
-        resultVbox.addWidget(widgetYachse)
+        layout.addWidget(labelYachse,1,1)
 
         #create Plank Row
-        widgetPlank=QWidget()
-        hBoxPlank=QHBoxLayout()
-        labelPlankText=QLabel("Plancksches Wirkungsquantum: ")
+        labelPlankText=QLabel("Plank Konstante: ")
         self.labels.append(labelPlankText)
-        hBoxPlank.addWidget(labelPlankText)
+        layout.addWidget(labelPlankText,2,0)
         labelPlank=QLabel("0")
         self.labels.append(labelPlank)
-        hBoxPlank.addWidget(labelPlank)
-        widgetPlank.setLayout(hBoxPlank)
-        resultVbox.addWidget(widgetPlank)
+        layout.addWidget(labelPlank,2,1)
+
+
+        #create resultGroupBox
+        resultGroupBox=QGroupBox("Ergebnisse")
+        resultGroupBox.setLayout(layout)
 
         #create infofreqWidget
         infofreqWidget=QWidget()
@@ -190,6 +190,7 @@ class MainPage(QMainWindow):
         buttonHBox.addWidget(measureButton)
         buttonHBox.addWidget(calcButton)
         buttonWidget.setLayout(buttonHBox)
+
 
 
         #create Info Widget
@@ -221,7 +222,7 @@ class MainPage(QMainWindow):
             for w in self.wellenRadios:
                 if w.isChecked():
                     i=self.wellenRadios.index(w)
-                    wert=3.0e8/wellen[find_in_sublist(wellen,w.text())][1]
+                    wert=wellen[find_in_sublist(wellen,w.text())][1]
             mdata=self.plotWidget.data[0]
             ii=find_in_sublist(mdata,wert)
             xvalue,yvalue,xunit,yunit=self.lastData
@@ -229,10 +230,12 @@ class MainPage(QMainWindow):
                 mdata[ii]=[wert,yvalue]
                 self.plotWidget.replacePlot(id=0,scatter=True,data=mdata)
             else:
-                self.wellenRadios[i].setChecked(False)
-                self.wellenRadios[(i+1)%len(self.wellenRadios)].setChecked(True)
-                data=(wert,yvalue,("Frequenz","Hz"),yunit)
+                data=(wert,yvalue,("Wellenlänge","m"),yunit)
                 self.plotWidget.updatePlot(id=0,inpData=data)
+                if i<len(self.wellenRadios)-1:
+                    self.wellenRadios[i].setChecked(False)
+                    self.wellenRadios[(i+1)%len(self.wellenRadios)].setChecked(True)
+
 
 
 
@@ -251,7 +254,7 @@ class MainPage(QMainWindow):
         self.labels[3].setText('{:.2e} {}'.format(c,"V"))
         self.labels[1].setText('{:.2e} {}/{}'.format(a,"V","Hz"))
         self.labels[5].setText('{:.2e} Js'.format(h))
-        self.plotWidget.newPlot(data=data)
+        self.plotWidget.replacePlot(data=data,id=1)
 
     #function to start Measuring again
     def startMeasure(self):
