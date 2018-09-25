@@ -2,7 +2,7 @@
 # author: Michael Auer
 
 #Standart imports
-import sys,os
+import sys,os,ast
 from PyQt5.QtWidgets import QMainWindow,QApplication, QWidget, QMessageBox, QAction,QHBoxLayout, QVBoxLayout,QTabWidget,QFileDialog,QGroupBox,QPushButton,QRadioButton,QLabel,QGridLayout
 from PyQt5.QtGui import QIcon,QFont
 from PyQt5.QtCore import QSettings,QSize,QPoint
@@ -12,8 +12,7 @@ from scipy.optimize import curve_fit
 from Plotter import Plotter
 from Pages import SettingsPage, LcdPage
 
-
-wellen=[["585nm",585e-9],["581nm",581e-9],["580nm",580e-9],["546nm",546e-9],["492nm",492e-9],["439nm",439e-9],["400nm",400e-9]]
+wellenString='[["585nm",585e-9],["581nm",581e-9],["580nm",580e-9],["546nm",546e-9],["492nm",492e-9],["439nm",439e-9],["400nm",400e-9]]'
 
 def f(x,a,c):
     return a*x+c
@@ -32,8 +31,14 @@ def find_in_sublist(haufen,nadel):
 class MainPage(QMainWindow):
     def __init__(self):
         super(MainPage,self).__init__()
-        self.settings = QSettings('LMU-Muenchen', 'Voltmeter')
+        self.settings = QSettings('LMU-Muenchen', 'PhotoEffekt')
         self.settings.setValue("path",os.path.dirname(os.path.realpath(__file__)))
+        try:
+            self.wellen=ast.literal_eval(self.settings.value("wellenText",wellenString))
+        except Exception as e:
+            print(e)
+            self.wellen=[]
+        print(self.wellen)
         self.lcdPage=LcdPage()
         self.settingsPage=SettingsPage()
         self.lastData=None
@@ -47,7 +52,7 @@ class MainPage(QMainWindow):
         #cosmeticals
         self.resize(self.settings.value('mainPageSize', QSize(1000, 400)))
         self.move(self.settings.value('mainPagePos', QPoint(50, 50)))
-        self.setWindowTitle('Voltmeter')
+        self.setWindowTitle('PhotoEffekt')
         self.setWindowIcon(QIcon(resource_path('icons/AppIcon.png')))
 
         #add Action to Close Programm
@@ -109,35 +114,25 @@ class MainPage(QMainWindow):
         toolbar.addAction(self.startAction)
         toolbar.addAction(self.stopAction)
         toolbar.addAction(self.openSettingsAction)
-        toolbar.addAction(self.measureAction)
 
 
         self.plotWidget = Plotter(self,legend=False)
-        self.infoWidget = self.createInfoWidget()
-
-
-        #create Main Widget
-        self.mainWidget=QWidget()
-        self.mainLayout = QHBoxLayout()
-        self.mainLayout.addWidget(self.plotWidget,10)
-        self.mainLayout.addWidget(self.infoWidget,8)
-        self.mainWidget.setLayout(self.mainLayout)
-        #set Central Widget to Main Widget
-        self.setCentralWidget(self.mainWidget)
         #show MainWindow
         self.uiChange()
         self.show()
 
 
     def createInfoWidget(self):
-
+        self.labels=[]
+        self.wellenRadios=[]
         freqGroupBox=QGroupBox("Wellenlänge")
         freqVbox=QVBoxLayout()
-        for w in wellen:
+        for w in self.wellen:
             radio = QRadioButton(w[0])
             self.wellenRadios.append(radio)
             freqVbox.addWidget(radio)
-        self.wellenRadios[0].setChecked(True)
+        if len(self.wellenRadios) >0:
+            self.wellenRadios[0].setChecked(True)
         freqGroupBox.setLayout(freqVbox)
 
         #create Ergebnisse Layout
@@ -222,15 +217,16 @@ class MainPage(QMainWindow):
             for w in self.wellenRadios:
                 if w.isChecked():
                     i=self.wellenRadios.index(w)
-                    wert=wellen[find_in_sublist(wellen,w.text())][1]
+                    wert=self.wellen[find_in_sublist(self.wellen,w.text())][1]
+                    freq=(299792458)/wert
             mdata=self.plotWidget.data[0]
-            ii=find_in_sublist(mdata,wert)
+            ii=find_in_sublist(mdata,freq)
             xvalue,yvalue,xunit,yunit=self.lastData
             if not ii==None:
-                mdata[ii]=[wert,yvalue]
+                mdata[ii]=[freq,yvalue]
                 self.plotWidget.replacePlot(id=0,scatter=True,data=mdata)
             else:
-                data=(wert,yvalue,("Wellenlänge","m"),yunit)
+                data=(freq,yvalue,("Frequenz","Hz"),yunit)
                 self.plotWidget.updatePlot(id=0,inpData=data)
                 if i<len(self.wellenRadios)-1:
                     self.wellenRadios[i].setChecked(False)
@@ -287,6 +283,20 @@ class MainPage(QMainWindow):
         self.stopAction.setEnabled(False)
 
     def uiChange(self):
+        try:
+            self.wellen=ast.literal_eval(self.settings.value("wellenText",wellenString))
+        except Exception as e:
+            print(e)
+            self.wellen=[["Wellenlängeneinstellungen Falsch",0],["Bitte Einstellungen Resetten",0]]
+        self.infoWidget = self.createInfoWidget()
+        #create Main Widget
+        self.mainWidget=QWidget()
+        self.mainLayout = QHBoxLayout()
+        self.mainLayout.addWidget(self.plotWidget,10)
+        self.mainLayout.addWidget(self.infoWidget,8)
+        self.mainWidget.setLayout(self.mainLayout)
+        #set Central Widget to Main Widget
+        self.setCentralWidget(self.mainWidget)
         newfont = QFont("Times", self.settings.value("fontThickness",15,int))
         for l in self.labels:
             l.setFont(newfont)
@@ -299,19 +309,17 @@ class MainPage(QMainWindow):
             #enshure it is a .txt file
             if fileName[len(fileName)-4:] == ".txt":
                 fileName=fileName[:-4]
-            for i,d in enumerate(self.tabWidget.currentWidget().findChild(Plotter).data):
-                np.savetxt(fileName + "_Graph" + str(i+1)+".txt",d)
+            np.savetxt(fileName +".txt",self.plotWidget.data[0])
 
 
 
     #function to load data to a new Plot
     def loadData(self):
         fileNames = QFileDialog.getOpenFileNames(self, 'Dialog Title', '', filter='*.txt')[0]
-        plotWidget = self.newPlot()
         for f in fileNames:
             if f != "":
                 loadedData = np.loadtxt(f)
-                plotWidget.newPlot(loadedData)
+                self.plotWidget.replacePlot(data=loadedData,id=0,scatter=True)
 
 
     #function to open Settings

@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget,QHBoxLayout, QVBoxLayout,QGroupBox,QRadioButton,QGridLayout,QPushButton,QCheckBox,QSpinBox,QLabel,QColorDialog,QLCDNumber,QGridLayout
+from PyQt5.QtWidgets import QWidget,QHBoxLayout, QVBoxLayout,QGroupBox,QRadioButton,QGridLayout,QPushButton,QCheckBox,QSpinBox,QLabel,QColorDialog,QLCDNumber,QGridLayout,QLineEdit
 from PyQt5.QtGui import QIcon,QColor,QFont
 from PyQt5.QtCore import QSettings,QSize,QPoint,Signal,Qt
 from functools import partial
@@ -10,6 +10,9 @@ QColor(255, 0, 0, 255),QColor(239, 41, 41, 255),QColor(138, 226, 52, 255),QColor
 QColor(173, 127, 168, 255),QColor(136, 138, 133, 255),QColor(164, 0, 0, 255),QColor(206, 92, 0, 255),
 QColor(196, 160, 0, 255),QColor(78, 154, 6, 255),QColor(32, 74, 135, 255),QColor(92, 53, 102, 255)
 ]
+
+wellenString='[["585nm",585e-9],["581nm",581e-9],["580nm",580e-9],["546nm",546e-9],["492nm",492e-9],["439nm",439e-9],["400nm",400e-9]]'
+
 
 prefix = {-24:"y",-21:"z",-18:"a",-15:"f",-12:"p",-9:"n",-6:"u",-3:"m",-2:"c",-1:"d",0:"",
                 3:"k",6:"M",9:"G",12:"T",15:"P",18:"E",21:"Z",24:"Y"}
@@ -28,7 +31,7 @@ class SettingsPage(QWidget):
 
     def __init__(self):
         super(SettingsPage,self).__init__()
-        self.settings = QSettings("LMU-Muenchen", 'Voltmeter')
+        self.settings = QSettings("LMU-Muenchen", 'PhotoEffekt')
         self.resize(self.settings.value('settingsPageSize', QSize(250, 250)))
         self.move(self.settings.value('settingsPagePos', QPoint(1100, 50)))
         self.devs=[]
@@ -84,6 +87,17 @@ class SettingsPage(QWidget):
         self.conGroupBox.setLayout(conVbox)
         self.grid.addWidget(self.conGroupBox)
 
+
+
+        self.wellenGroupBox=QGroupBox("Wellenlängen")
+        wellenVbox = QVBoxLayout()
+        self.wellenEdit=QLineEdit()
+        self.wellenEdit.setText(self.settings.value("wellenText",wellenString))
+        self.wellenEdit.returnPressed.connect(self.changeWellenText)
+        wellenVbox.addWidget(self.wellenEdit)
+        self.wellenGroupBox.setLayout(wellenVbox)
+        self.grid.addWidget(self.wellenGroupBox)
+
         #Create Menu to set Appearence
         self.uiGroupBox=QGroupBox("UI")
         #create Axis Size chooser
@@ -109,7 +123,7 @@ class SettingsPage(QWidget):
         fontThickInp=QSpinBox()
         fontThickInp.setPrefix("Font Size: ")
         fontThickInp.setSuffix("px")
-        lineThick=self.settings.value("fontSize", 15,int)
+        lineThick=self.settings.value("fontThickness", 15,int)
         fontThickInp.setValue(lineThick)
         fontThickInp.valueChanged.connect(self.changeFontThickness)
         uiVbox.addWidget(fontThickInp)
@@ -126,6 +140,13 @@ class SettingsPage(QWidget):
         lineThick=self.settings.value("lineThickness", 3,int)
         thickInp.setValue(lineThick)
         thickInp.valueChanged.connect(self.changeLineThickness)
+        plotVbox.addWidget(thickInp)
+        thickInp=QSpinBox()
+        thickInp.setPrefix("Point Thickness: ")
+        thickInp.setSuffix("px")
+        lineThick=self.settings.value("pointThickness", 8,int)
+        thickInp.setValue(lineThick)
+        thickInp.valueChanged.connect(self.changePointThickness)
         plotVbox.addWidget(thickInp)
         colors=self.settings.value("colors",defaultColors,QColor)
         plotHbox = QHBoxLayout()
@@ -217,6 +238,14 @@ class SettingsPage(QWidget):
         self.settings.setValue("lineThickness",thick)
         self.uiChange.emit(None)
 
+    def changePointThickness(self,thick):
+        self.settings.setValue("pointThickness",thick)
+        self.uiChange.emit(None)
+
+    def changeWellenText(self):
+        self.settings.setValue("wellenText", self.wellenEdit.text())
+        self.uiChange.emit(None)
+
     #override the closeEvent function to catch the event and do things
     def closeEvent(self, event):
         #save Window sizes
@@ -252,13 +281,13 @@ class SettingsPage(QWidget):
 class LcdPage(QWidget):
     def __init__(self):
         super(LcdPage,self).__init__()
-        self.settings = QSettings('LMU-Muenchen', 'Voltmeter')
+        self.settings = QSettings('LMU-Muenchen', 'PhotoEffekt')
         self.resizeEvent = self.onResize
         self.initUI()
 
     #function to adapt to resized window size
     def onResize(self,event):
-        self.font.setPixelSize(self.height()*0.1)
+        self.font.setPixelSize(self.height()*0.4)
         self.text.setFont(self.font)
 
     #function to initiate UI
@@ -276,7 +305,7 @@ class LcdPage(QWidget):
         self.lcd.setDigitCount(5)
         self.text=QLabel("unit")
         self.font=QFont()
-        self.font.setPixelSize(self.height()*0.1)
+        self.font.setPixelSize(self.height()*0.4)
         self.text.setFont(self.font)
         grid.addWidget(self.lcd,0,0)
         grid.addWidget(self.text,0,1)

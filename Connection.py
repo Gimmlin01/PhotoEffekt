@@ -14,7 +14,7 @@ class Connection(threading.Thread):
         self._pause_event = threading.Event()
         self._stop_event.set()
         self.outQueue=Queue()
-        self.settings = QSettings('LMU-Muenchen', 'Voltmeter')
+        self.settings = QSettings('LMU-Muenchen', 'PhotoEffekt')
         self.device=None
 
     #function to init the Device and import the given python scripts

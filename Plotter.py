@@ -43,7 +43,7 @@ class Plotter(pg.PlotWidget):
         self.legend=legend
         self.xunit="xunit"
         self.yunit="yunit"
-        self.settings = QSettings('LMU-Muenchen', 'Voltmeter')
+        self.settings = QSettings('LMU-Muenchen', 'PhotoEffekt')
         self.parent.settingsPage.uiChange.connect(self.uiChange)
         self.uiChange()
 
@@ -120,7 +120,8 @@ class Plotter(pg.PlotWidget):
         lp=len(self.plots)
         self.data.append(data)
         if scatter:
-            plot=self.plot(self.data[lp],pen=None,symbol="o")
+            color=self.settings.value("colors",defaultColors,QColor)[lp%16]
+            plot=self.plot(self.data[lp],pen=None,symbolBrush=color,symbolPen=color,symbol="o")
         else:
             pen=pg.mkPen(color=self.settings.value("colors",defaultColors,QColor)[lp%16],width=self.settings.value("lineThickness",3,int))
             plot=self.plot(self.data[lp],pen=pen)
@@ -143,6 +144,7 @@ class Plotter(pg.PlotWidget):
                 pen=pg.mkPen(color=self.settings.value("colors",defaultColors,QColor)[id%16],width=self.settings.value("lineThickness",3,int))
                 self.plots[id].setPen(pen)
             self.scatters[id]=scatter
+            self.uiChange()
         else:
             print("wrong id creating new Plot")
             self.newPlot(id=id,scatter=scatter,data=data)
@@ -175,7 +177,11 @@ class Plotter(pg.PlotWidget):
 
         #create each pen and update colors and width
         for i,p in enumerate(self.plots):
-            if not self.scatters[i]:
+            if self.scatters[i]:
+                p.setSymbolBrush(c[i])
+                p.setSymbolPen(c[i])
+                p.setSymbolSize(self.settings.value("pointThickness",8,int))
+            else:
                 pen=pg.mkPen(color=c[i],width=w)
                 p.setPen(pen)
         #update labelStyle
