@@ -149,6 +149,12 @@ class Plotter(pg.PlotWidget):
             print("wrong id creating new Plot")
             self.newPlot(id=id,scatter=scatter,data=data)
 
+    def clearPlots(self):
+        for plot in self.plots:
+            plot.clear()
+        self.data=[np.empty([0,2]),np.empty([0,2])]
+
+
     #function to update the plot (must happen in Main Thread)
     def updatePlot(self,id=None,inpData=None):
         if id==None:

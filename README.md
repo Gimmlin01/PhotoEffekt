@@ -1,19 +1,21 @@
-# LMU Voltmeter
-Ein Programm das zur Live Darstellung einer Messung mit einem Multimeter genutzt wird.
+# Photo Effekt
+Ein Programm das zur Messung des Plank'schen Wirkungsquantums genutzt wird.
+
+Es werden bei jeweils verschiedenen Wellenlängen die Gegenspannung bei der kein Photostrom mehr fließt gemessen. Danach wird durch die Messdaten eine Gerade gefittet, aus den Fit-parametern wird dann bei Klick auf Auswertung h bestimmt.
 
 ## Programm Aufbau
 Programm Besteht aus mehreren Teilen:
 
 ### main.py:
   Verantwortlich für die GUI(PyQT5).
-  MainPage in der die verschiedenen Aktionen und das TabWidget sitzt in dem die Plots dargestellt werden.
+  MainPage in der die verschiedenen Aktionen, der Plot und ein LCDWidget sitzen
 
 ### Pages.py:
 Verwaltet die verschiedenen Seiten die das Programm benötigt
 
 #### Seiten:
 * LcdPage: Seite in der der Aktuelle Messwert angezeigt werden kann.
-* SettingsPage: Seite für das Einstellen der Schriftgröße/Strichdicke, ...
+* SettingsPage: Seite für das Einstellen der Schriftgröße/Strichdicke, Relevanter Wellenlängen etc...
 
 ### Connection.py:
   Dieser Programmteil is für die verständigung zwischen Programm <-> Gerät zuständig
@@ -34,12 +36,10 @@ Verwaltet die verschiedenen Seiten die das Programm benötigt
 MainPage:
   toolbar
   menuBar
-  tabWidget:
-    Tab:
-      Plotter:
-        Plots:
-          Connection:
-            Device  
+    Plotter:
+      Plots:
+        Connection:
+          Device  
 ```
 
 ## Erklärung der UT61C.py:

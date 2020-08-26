@@ -23,6 +23,15 @@ def resource_path(relative_path):
         return os.path.join(sys._MEIPASS, relative_path)
     return os.path.join(os.path.abspath("."), relative_path)
 
+keymap = {}
+for key, value in vars(Qt).items():
+    if isinstance(value, Qt.Key):
+        keymap[value] = key.partition('_')[2]
+keymap[196]="Ä"
+keymap[214]="Ö"
+keymap[220]="Ü"
+
+
 #class for the Settings Dialog
 class SettingsPage(QWidget):
 
@@ -35,8 +44,21 @@ class SettingsPage(QWidget):
         self.resize(self.settings.value('settingsPageSize', QSize(250, 250)))
         self.move(self.settings.value('settingsPagePos', QPoint(1100, 50)))
         self.devs=[]
+        self.changeingKeys=False
         self.initDevices()
         self.initUI()
+
+    def keyPressEvent(self, event):
+        if self.changeingKeys:
+            keys=self.settings.value("measureKeys", type=int)
+            key=event.key()
+            if not key in keys:
+                keys.append(event.key())
+                self.settings.setValue("measureKeys",keys)
+                text=""
+                for k in keys:
+                    text+=keymap.get(k,"NotAKey")+","
+                self.keyLabel.setText(text[:-1])
 
     #function to scan all devices in devicePath
     def initDevices(self):
@@ -89,7 +111,25 @@ class SettingsPage(QWidget):
 
 
 
-        self.wellenGroupBox=QGroupBox("Wellenlängen")
+        self.keyBox=QGroupBox("Key/s for measuring")
+        keyVbox = QVBoxLayout()
+        keys=self.settings.value("measureKeys",[16777272], type=int)
+        text=""
+        for k in keys:
+            text+=keymap.get(k,"NotAKey")+","
+        self.keyLabel=QLabel(text[:-1])
+        keyVbox.addWidget(self.keyLabel)
+
+        self.keyButton = QPushButton("Change Key/s")
+        self.keyButton.clicked.connect(lambda:self.changeKey())
+        keyVbox.addWidget(self.keyButton)
+        self.keyBox.setLayout(keyVbox)
+        self.grid.addWidget(self.keyBox)
+
+
+
+
+        self.wellenGroupBox=QGroupBox("Wavelengths")
         wellenVbox = QVBoxLayout()
         self.wellenEdit=QLineEdit()
         self.wellenEdit.setText(self.settings.value("wellenText",wellenString))
@@ -246,9 +286,29 @@ class SettingsPage(QWidget):
         self.settings.setValue("wellenText", self.wellenEdit.text())
         self.uiChange.emit(None)
 
+    def changeKey(self):
+        if not self.changeingKeys:
+            self.startChangeKey()
+        else:
+            self.stopChangeKey()
+
+    def startChangeKey(self):
+        self.keyButton.setText("Finish recording")
+        self.grabKeyboard()
+        self.keyLabel.setText("")
+        self.settings.setValue("measureKeys", [])
+        self.changeingKeys=True
+
+
+    def stopChangeKey(self):
+        self.keyButton.setText("Change Key/s")
+        self.releaseKeyboard()
+        self.changeingKeys=False
+
     #override the closeEvent function to catch the event and do things
     def closeEvent(self, event):
         #save Window sizes
+        self.releaseKeyboard()
         if (self.settings.value("Size",True,bool)):
             self.settings.setValue("settingsPageSize",self.size())
         if (self.settings.value("Position",True,bool)):

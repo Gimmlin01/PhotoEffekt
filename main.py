@@ -1,5 +1,6 @@
-#! /usr/bin/python3
-# author: Michael Auer
+#!/usr/bin/python3
+
+#author: Michael Auer
 
 #Standart imports
 import sys,os,ast
@@ -38,7 +39,6 @@ class MainPage(QMainWindow):
         except Exception as e:
             print(e)
             self.wellen=[]
-        print(self.wellen)
         self.lcdPage=LcdPage()
         self.settingsPage=SettingsPage()
         self.lastData=None
@@ -46,6 +46,13 @@ class MainPage(QMainWindow):
         self.wellenRadios=[]
         self.settingsPage.uiChange.connect(self.uiChange)
         self.initUI()
+
+    def keyPressEvent(self, event):
+        super(MainPage,self).keyPressEvent(event)
+        keys=self.settings.value("measureKeys",[16777272], type=int)
+        key=event.key()
+        if key in keys:
+            self.measure()
 
 
     def initUI(self):
@@ -177,13 +184,16 @@ class MainPage(QMainWindow):
         infofreqWidget.setLayout(infofreqHBox)
 
         measureButton=QPushButton("Messen")
+        resetButton=QPushButton("Reset")
         calcButton=QPushButton("Auswerten")
         measureButton.clicked.connect(lambda:self.measure())
+        resetButton.clicked.connect(lambda:self.reset())
         calcButton.clicked.connect(lambda:self.calc())
         buttonWidget=QWidget()
         buttonHBox = QHBoxLayout()
         buttonHBox.addWidget(measureButton)
         buttonHBox.addWidget(calcButton)
+        buttonHBox.addWidget(resetButton)
         buttonWidget.setLayout(buttonHBox)
 
 
@@ -232,10 +242,6 @@ class MainPage(QMainWindow):
                     self.wellenRadios[i].setChecked(False)
                     self.wellenRadios[(i+1)%len(self.wellenRadios)].setChecked(True)
 
-
-
-
-
     def calc(self):
         xdata,ydata = self.plotWidget.plots[0].getData()
         popt, pcov = curve_fit(f, xdata, ydata)
@@ -251,6 +257,10 @@ class MainPage(QMainWindow):
         self.labels[1].setText('{:.2e} {}/{}'.format(a,"V","Hz"))
         self.labels[5].setText('{:.2e} Js'.format(h))
         self.plotWidget.replacePlot(data=data,id=1)
+
+    def reset(self):
+        self.plotWidget.clearPlots()
+        self.uiChange()
 
     #function to start Measuring again
     def startMeasure(self):
